@@ -34,6 +34,11 @@ from . import data_service
 from .data_service import REP_IDS
 
 MODEL_NAME = "gpt-4o-mini"
+SCORE_WEIGHTS = {
+    "revenue_fit": 0.3,
+    "tech_stack_match": 0.5,
+    "segment_fit": 0.2,
+}
 
 # ---------------------------------------------------------------------------
 # Tools
@@ -69,8 +74,9 @@ def build_prospect_profile(prospect_id: str) -> dict:
 
 SCORING_PROMPT = (
     "You are a GTM assistant. Score the prospect's potential for the offering from "
-    "1 to 100 based on how good a fit they are, weighing their annual revenue and "
-    "tech stack. In your justification, explicitly list which of the offering's required "
+    "1 to 100 using revenue_fit (30%), tech_stack_match (50%), and segment_fit (20%); "
+    "the overall score is computed from these component scores using these weights. "
+    "In your justification, explicitly list which of the offering's required "
     "technologies the prospect has and which required technologies they are missing, naming "
     "each one. Any missing required technology must lower the tech_stack_match component and "
     "the overall score. Return a score and a justification that reflects your "
@@ -119,6 +125,10 @@ def score_prospect(prospect_profile: dict, offering: dict | None = None) -> dict
         {"role": "system", "content": SCORING_PROMPT},
         {"role": "user", "content": user},
     ])
+    result.score = round(sum(
+        getattr(result.rubric_breakdown, component) * weight
+        for component, weight in SCORE_WEIGHTS.items()
+    ), 1)
     return result.model_dump()
 
 
